@@ -1,20 +1,16 @@
 export default async function handler(req, res) {
-    // Tangkap path dari query dinamis Vercel (catch-all) atau fallback ke req.url
     const { path } = req.query;
     let requestedPath = '';
 
     if (path) {
         requestedPath = '/' + (Array.isArray(path) ? path.join('/') : path);
     } else {
-        // Fallback parsing URL jika dipanggil langsung
         const parsedFullUrl = new URL(req.url, `https://${req.headers.host}`);
         requestedPath = parsedFullUrl.pathname;
     }
 
-    // Normalisasi path (hapus trailing slash dan pastikan diawali slash tunggal)
     requestedPath = '/' + requestedPath.replace(/^\/+/, '').replace(/\/+$/, '');
 
-    // Kompatibilitas mundur dengan proxy tester lama (POST {url})
     if (req.method === 'POST' && req.body && req.body.url && (requestedPath === '/' || requestedPath === '/api' || requestedPath === '/api/proxy')) {
         return handleLegacyProxy(req, res);
     }
@@ -34,25 +30,21 @@ export default async function handler(req, res) {
         const configData = await configRes.json();
         const endpoints = configData.record.endpoints || [];
 
-        // Cari endpoint yang cocok berdasarkan slug atau path URL sumber
         const matchedEp = endpoints.find(ep => {
-            // Pastikan boolean aktif dan publik benar-benar terpenuhi
             const isEnabled = ep.enabled === true || ep.enabled === 'true';
             const isPublic = ep.public === true || ep.public === 'true';
             if (!isEnabled || !isPublic) return false;
 
-            // Normalisasi slug/path yang tersimpan di database admin
             let epSlug = ep.slug || '';
-            if (!epSlug && ep.url) {
+            if (!epSlug && (ep.url || ep.sourceUrl)) {
                 try {
-                    epSlug = new URL(ep.url).pathname;
+                    epSlug = new URL(ep.url || ep.sourceUrl).pathname;
                 } catch (e) {
                     epSlug = '';
                 }
             }
             epSlug = '/' + epSlug.replace(/^\/+/, '').replace(/\/+$/, '');
 
-            // Bandingkan apakah path request sama dengan slug publik atau dengan awalan /api
             return requestedPath === epSlug || requestedPath === ('/api' + epSlug) || ('/api' + requestedPath) === epSlug;
         });
 
@@ -63,7 +55,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // Validasi HTTP Method
         if (matchedEp.method && matchedEp.method.toUpperCase() !== req.method.toUpperCase()) {
             return res.status(405).json({
                 success: false,
@@ -71,23 +62,36 @@ export default async function handler(req, res) {
             });
         }
 
-        // Ambil URL sumber (mendukung properti 'url' maupun 'sourceUrl')
         const targetSourceUrl = matchedEp.url || matchedEp.sourceUrl;
         if (!targetSourceUrl) {
             return res.status(500).json({ success: false, error: 'Target source URL is not configured for this endpoint.' });
         }
 
+        const incomingUrlObj = new URL(req.url, `https://${req.headers.host}`);
         const targetUrlObj = new URL(targetSourceUrl);
 
-        // Pindahkan seluruh parameter query string dari request pengguna ke URL sumber
-        const incomingUrlObj = new URL(req.url, `https://${req.headers.host}`);
+        // 1. Terapkan Parameter Mapping jika dikonfigurasi admin (misal: {"text": "prompt"})
+        const mapping = matchedEp.parameterMapping || {};
         incomingUrlObj.searchParams.forEach((value, key) => {
-            targetUrlObj.searchParams.set(key, value);
+            const mappedKey = mapping[key] || key;
+            targetUrlObj.searchParams.set(mappedKey, value);
         });
+
+        // 2. Validasi Parameter Wajib (requiredParams)
+        const requiredParams = matchedEp.requiredParams || [];
+        for (const reqParam of requiredParams) {
+            const effectiveKey = Object.keys(mapping).find(k => mapping[k] === reqParam) || reqParam;
+            if (!targetUrlObj.searchParams.has(reqParam) && !incomingUrlObj.searchParams.has(effectiveKey)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Missing required parameter: '${reqParam}' (or mapped equivalent)`
+                });
+            }
+        }
 
         const finalTargetUrl = targetUrlObj.toString();
 
-        // Validasi Keamanan SSRF (Blokir IP lokal/internal)
+        // Validasi Keamanan SSRF
         const hostname = targetUrlObj.hostname;
         if (
             hostname === 'localhost' ||
@@ -100,32 +104,81 @@ export default async function handler(req, res) {
             return res.status(403).json({ success: false, error: 'Forbidden: Target URL violates security policies.' });
         }
 
-        // Eksekusi Request ke API Pihak Ketiga
+        // Susun Headers & Autentikasi Universal
+        const headers = {
+            'User-Agent': 'DIMZZ-API-HUB-Universal-Adapter/2026',
+            ...(matchedEp.headers || {})
+        };
+
+        if (matchedEp.auth) {
+            if (matchedEp.auth.type === 'bearer' && matchedEp.auth.token) {
+                headers['Authorization'] = `Bearer ${matchedEp.auth.token}`;
+            } else if (matchedEp.auth.type === 'apikey' && matchedEp.auth.key && matchedEp.auth.value) {
+                headers[matchedEp.auth.key] = matchedEp.auth.value;
+            }
+        }
+
         const startTime = Date.now();
         const fetchOptions = {
             method: matchedEp.method || 'GET',
-            headers: {
-                'User-Agent': 'DIMZZ-API-HUB-Secure-Proxy/2026',
-                ...(matchedEp.headers || {})
-            }
+            headers
         };
 
         if (['POST', 'PUT', 'PATCH'].includes(fetchOptions.method)) {
             if (req.body && Object.keys(req.body).length > 0) {
-                fetchOptions.headers['Content-Type'] = 'application/json';
-                fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+                fetchOptions.headers['Content-Type'] = matchedEp.bodyType === 'form' ? 'application/x-www-form-urlencoded' : 'application/json';
+                if (matchedEp.bodyType === 'form') {
+                    const formBody = new URLSearchParams(req.body).toString();
+                    fetchOptions.body = formBody;
+                } else {
+                    fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+                }
             }
         }
 
-        const externalRes = await fetch(finalTargetUrl, fetchOptions);
+        const timeoutLimit = matchedEp.timeout || 15000;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutLimit);
+        fetchOptions.signal = controller.signal;
+
+        let externalRes;
+        try {
+            externalRes = await fetch(finalTargetUrl, fetchOptions);
+            clearTimeout(timeoutId);
+        } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            return res.status(504).json({ success: false, error: `Gateway Timeout or Network Error: ${fetchErr.message}` });
+        }
+
         const responseTime = Date.now() - startTime;
         const contentType = externalRes.headers.get('content-type') || '';
+        const responseTypeConfig = matchedEp.responseType || 'auto';
 
         let responseData;
-        if (contentType.includes('application/json')) {
-            responseData = await externalRes.json();
+        if (responseTypeConfig === 'binary' || contentType.includes('image/') || contentType.includes('audio/') || contentType.includes('video/')) {
+            const arrayBuffer = await externalRes.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            res.setHeader('Content-Type', contentType);
+            return res.status(externalRes.status).send(buffer);
+        }
+
+        const responseText = await externalRes.text();
+
+        if (responseTypeConfig === 'text' || (!contentType.includes('application/json') && !responseText.trim().startsWith('{') && !responseText.trim().startsWith('['))) {
+            responseData = {
+                contentType,
+                output: responseText
+            };
         } else {
-            responseData = await externalRes.text();
+            try {
+                responseData = JSON.parse(responseText);
+            } catch (jsonErr) {
+                responseData = {
+                    warning: "Target server returned invalid JSON",
+                    contentType,
+                    rawOutput: responseText.substring(0, 1000)
+                };
+            }
         }
 
         return res.status(externalRes.status).json({
@@ -144,7 +197,6 @@ export default async function handler(req, res) {
     }
 }
 
-// Handler fallback untuk fitur lama
 async function handleLegacyProxy(req, res) {
     const { url, method = 'GET', headers = {}, body = null } = req.body;
     try {
@@ -158,8 +210,9 @@ async function handleLegacyProxy(req, res) {
             headers: { 'User-Agent': 'DIMZZ-Legacy-Proxy', ...headers },
             body: body && ['POST', 'PUT', 'PATCH'].includes(method) ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined
         });
-        const contentType = resp.headers.get('content-type') || '';
-        const data = contentType.includes('application/json') ? await resp.json() : await resp.text();
+        const text = await resp.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) { data = { rawOutput: text.substring(0, 1000) }; }
         return res.status(200).json({ success: resp.ok, status: resp.status, responseTime: Date.now() - start, data });
     } catch (err) {
         return res.status(500).json({ success: false, error: err.message });
