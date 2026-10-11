@@ -3,17 +3,15 @@ export default async function handler(req, res) {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const binId = process.env.JSONBIN_BIN_ID;
-    const apiKey = process.env.JSONBIN_PUBLIC_KEY;
+    const binId = process.env.JSONBIN_BIN_ID || '6acb030dffd5d16053607ef6';
 
     if (!binId) {
         return res.status(500).json({ success: false, error: 'JSONBin Bin ID not configured on server' });
     }
 
     try {
-        const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-            headers: apiKey ? { 'X-Master-Key': apiKey } : {}
-        });
+        // Jika JSONBin Anda bersifat publik (Public Bin), header X-Master-Key tidak diperlukan sama sekali di sini.
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`);
 
         if (!response.ok) {
             throw new Error('Failed to fetch from JSONBin');
