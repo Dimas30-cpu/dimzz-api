@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIMZZ API HUB — One Hub. Unlimited API Possibilities.</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-['Inter'] antialiased selection:bg-purple-500 selection:text-white min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="fa-solid fa-cube text-white text-lg"></i>
+                </div>
+                <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-purple-400 bg-clip-text text-transparent">DIMZZ API HUB</span>
+            </div>
+            <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
+                <a href="#hero" class="hover:text-cyan-400 transition">Home</a>
+                <a href="#endpoints" class="hover:text-cyan-400 transition">API Endpoints</a>
+            </nav>
+            <div class="flex items-center space-x-3">
+                <span id="system-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1.5"></span> Operational
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="hero" class="relative overflow-hidden py-20 lg:py-28 border-b border-slate-800/60">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.1),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.1),transparent_50%)]"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6">
+                One Hub. <span class="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Unlimited API Possibilities.</span>
+            </h1>
+            <p class="max-w-2xl mx-auto text-lg text-slate-400 mb-10">
+                Discover, test, and integrate APIs from multiple providers in one place with ultra-fast serverless reliability.
+            </p>
+            
+            <!-- Search & Stats Bar -->
+            <div class="max-w-3xl mx-auto bg-slate-900/90 border border-slate-800 p-3 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-search absolute left-4 top-3.5 text-slate-500"></i>
+                    <input type="text" id="search-input" placeholder="Search APIs by name, category, or keyword..." class="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500 transition">
+                </div>
+                <select id="category-filter" class="bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-purple-500 transition">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            
+            <div class="flex justify-center gap-8 mt-8 text-sm text-slate-400">
+                <div><strong class="text-white" id="stat-total">0</strong> Total APIs</div>
+                <div><strong class="text-white" id="stat-categories">0</strong> Categories</div>
+                <div><strong class="text-emerald-400" id="stat-active">0</strong> Active Endpoints</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full" id="endpoints">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl font-bold tracking-tight text-white">Available Endpoints</h2>
+            <div id="method-filters" class="flex flex-wrap gap-2">
+                <button data-method="" class="method-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white transition">ALL</button>
+                <button data-method="GET" class="method-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-300 hover:border-emerald-500/50 transition">GET</button>
+                <button data-method="POST" class="method-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-300 hover:border-amber-500/50 transition">POST</button>
+            </div>
+        </div>
+
+        <div id="endpoints-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-6 animate-pulse">
+                <div class="h-6 bg-slate-800 rounded w-1/3 mb-4"></div>
+                <div class="h-4 bg-slate-800 rounded w-full mb-2"></div>
+                <div class="h-4 bg-slate-800 rounded w-2/3 mb-6"></div>
+                <div class="h-10 bg-slate-800 rounded w-full"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Detail & Tester Modal -->
+    <div id="api-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 border border-slate-800 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-message" class="text-sm font-medium">Copied to clipboard!</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900/40 border-t border-slate-800/80 py-8 text-center text-xs text-slate-500">
+        <p>&copy; 2026 DIMZZ API HUB. Secured Serverless Architecture.</p>
+    </footer>
+
+    <script>
+        let allEndpoints = [];
+        let currentFilterMethod = '';
+        let currentCategory = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchEndpoints();
+
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                filterAndRenderEndpoints(e.target.value);
+            });
+
+            document.getElementById('category-filter').addEventListener('change', (e) => {
+                currentCategory = e.target.value;
+                filterAndRenderEndpoints(document.getElementById('search-input').value);
+            });
+
+            document.querySelectorAll('.method-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.method-btn').forEach(b => {
+                        b.className = 'method-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-300 hover:border-purple-500/50 transition';
+                    });
+                    e.target.className = 'method-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white transition';
+                    currentFilterMethod = e.target.getAttribute('data-method');
+                    filterAndRenderEndpoints(document.getElementById('search-input').value);
+                });
+            });
+        });
+
+        async function fetchEndpoints() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if (data.success) {
+                    allEndpoints = data.endpoints.filter(ep => ep.enabled && ep.public);
+                    updateStats(data.endpoints);
+                    populateCategories(data.endpoints);
+                    filterAndRenderEndpoints('');
+                } else {
+                    showErrorState("Failed to load API configuration.");
+                }
+            } catch (err) {
+                showErrorState("Network error while connecting to server.");
+            }
+        }
+
+        function updateStats(endpoints) {
+            const active = endpoints.filter(e => e.enabled).length;
+            const categories = [...new Set(endpoints.map(e => e.category))].length;
+            document.getElementById('stat-total').innerText = endpoints.length;
+            document.getElementById('stat-categories').innerText = categories;
+            document.getElementById('stat-active').innerText = active;
+        }
+
+        function populateCategories(endpoints) {
+            const select = document.getElementById('category-filter');
+            const categories = [...new Set(endpoints.map(e => e.category))];
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.innerText = cat;
+                select.appendChild(opt);
+            });
+        }
+
+        function filterAndRenderEndpoints(searchTerm) {
+            const grid = document.getElementById('endpoints-grid');
+            const term = searchTerm.toLowerCase();
+
+            const filtered = allEndpoints.filter(ep => {
+                const matchesSearch = ep.name.toLowerCase().includes(term) || ep.description.toLowerCase().includes(term) || ep.category.toLowerCase().includes(term);
+                const matchesMethod = currentFilterMethod === '' || ep.method === currentFilterMethod;
+                const matchesCategory = currentCategory === '' || ep.category === currentCategory;
+                return matchesSearch && matchesMethod && matchesCategory;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-16 text-center text-slate-500">
+                        <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
+                        <p>No endpoints found matching your criteria.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(ep => {
+                const methodColor = ep.method === 'GET' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    ep.method === 'POST' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                return `
+                    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between hover:border-slate-700 transition group">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="px-2.5 py-1 rounded-md text-xs font-bold border ${methodColor}">${ep.method}</span>
+                                <span class="text-xs text-slate-500 font-mono">${ep.category}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2 group-hover:text-purple-400 transition">${ep.name}</h3>
+                            <p class="text-sm text-slate-400 mb-4 line-clamp-2">${ep.description}</p>
+                            <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-2.5 font-mono text-xs text-slate-300 truncate mb-4">
+                                ${ep.url}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 pt-4 border-t border-slate-800/80">
+                            <button onclick='openDetail(${JSON.stringify(ep)})' class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-medium py-2 px-4 rounded-xl text-xs transition shadow-lg shadow-purple-600/20">
+                                View Details & Test
+                            </button>
+                            <button onclick="copyToClipboard('${ep.url}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl text-xs transition" title="Copy URL">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openDetail(ep) {
+            const modal = document.getElementById('api-modal');
+            const content = document.getElementById('modal-content');
+            const curlCmd = `curl -X ${ep.method} "${ep.url}"`;
+
+            content.innerHTML = `
+                <div class="mb-4">
+                    <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 mr-2">${ep.method}</span>
+                    <span class="text-xs text-slate-400 font-mono">${ep.category}</span>
+                </div>
+                <h2 class="text-xl font-bold text-white mb-2">${ep.name}</h2>
+                <p class="text-sm text-slate-300 mb-6">${ep.description}</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Endpoint URL</label>
+                        <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-cyan-400">
+                            <span class="truncate flex-1">${ep.url}</span>
+                            <button onclick="copyToClipboard('${ep.url}')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">cURL Example</label>
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-emerald-400 overflow-x-auto flex items-center justify-between">
+                            <code class="truncate flex-1">${curlCmd}</code>
+                            <button onclick="copyToClipboard('${curlCmd}')" class="text-slate-400 hover:text-white ml-2"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800">
+                        <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-play text-purple-400 mr-2"></i> Live API Tester</h3>
+                        <button onclick='sendTestRequest("${ep.url}", "${ep.method}")' class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs transition shadow-lg shadow-emerald-600/20">
+                            Send Request via Proxy
+                        </button>
+                        <div id="test-result" class="mt-4 hidden">
+                            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Response Output</label>
+                            <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-300 overflow-x-auto max-h-48"><code id="test-output"></code></pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        async function sendTestRequest(url, method) {
+            const outputContainer = document.getElementById('test-output');
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.classList.remove('hidden');
+            outputContainer.innerText = 'Sending request...';
+
+            try {
+                const res = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, method })
+                });
+                const json = await res.json();
+                outputContainer.innerText = JSON.stringify(json, null, 2);
+            } catch (err) {
+                outputContainer.innerText = 'Error: ' + err.message;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('api-modal').classList.add('hidden');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Copied to clipboard successfully!");
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function showErrorState(msg) {
+            document.getElementById('endpoints-grid').innerHTML = `
+                <div class="col-span-full py-16 text-center text-red-400">
+                    <i class="fa-solid fa-triangle-exclamation text-4xl mb-3"></i>
+                    <p>${msg}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
